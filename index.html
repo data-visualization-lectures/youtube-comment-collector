@@ -98,6 +98,7 @@
         border: 1px solid var(--line);
         border-radius: 14px;
         padding: 14px;
+        min-width: 0;
       }
 
       .panel h2 {
@@ -183,6 +184,10 @@
 
       #evaluation-detail {
         white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        max-width: 100%;
+        overflow-x: auto;
         font-size: 12px;
         background: var(--surface-alt);
         border: 1px solid var(--line);
