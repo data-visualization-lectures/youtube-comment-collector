@@ -16,7 +16,7 @@ type RunTarget = {
 
 async function queueRun(target: RunCommentScanBody): Promise<RunTarget[]> {
   if (target.videoId) {
-    const rows = await sql<RunTarget[]>`
+    const rows = (await sql`
       INSERT INTO comment_ingest_runs (
         run_type,
         target_video_id,
@@ -24,12 +24,12 @@ async function queueRun(target: RunCommentScanBody): Promise<RunTarget[]> {
       )
       VALUES ('comment_scan', ${target.videoId}, 'queued')
       RETURNING id AS "runId", target_channel_id AS "channelId", target_video_id AS "videoId"
-    `;
+    `) as RunTarget[];
     return rows;
   }
 
   if (target.channelId) {
-    const rows = await sql<RunTarget[]>`
+    const rows = (await sql`
       INSERT INTO comment_ingest_runs (
         run_type,
         target_channel_id,
@@ -37,11 +37,11 @@ async function queueRun(target: RunCommentScanBody): Promise<RunTarget[]> {
       )
       VALUES ('comment_scan', ${target.channelId}, 'queued')
       RETURNING id AS "runId", target_channel_id AS "channelId", target_video_id AS "videoId"
-    `;
+    `) as RunTarget[];
     return rows;
   }
 
-  const rows = await sql<RunTarget[]>`
+  const rows = (await sql`
     INSERT INTO comment_ingest_runs (
       run_type,
       target_channel_id,
@@ -54,7 +54,7 @@ async function queueRun(target: RunCommentScanBody): Promise<RunTarget[]> {
     FROM channels c
     WHERE c.is_active = true
     RETURNING id AS "runId", target_channel_id AS "channelId", target_video_id AS "videoId"
-  `;
+  `) as RunTarget[];
   return rows;
 }
 
@@ -108,4 +108,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 }
-

@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YouTube Comment Collector Console</title>
+    <style>
+      :root {
+        --bg: #f4f7f5;
+        --surface: #ffffff;
+        --surface-alt: #eef3f0;
+        --text: #10231b;
+        --muted: #4a6256;
+        --line: #d5dfda;
+        --primary: #0f766e;
+        --accent: #d97706;
+        --danger: #c2410c;
+        --ok: #166534;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Avenir Next", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 10% 10%, #d7ebe4 0, transparent 30%),
+          radial-gradient(circle at 85% 0%, #f8ead4 0, transparent 25%),
+          var(--bg);
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px 16px 48px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        letter-spacing: 0.02em;
+      }
+
+      .subtitle {
+        margin: 0 0 20px;
+        color: var(--muted);
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+
+      button {
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--text);
+        border-radius: 10px;
+        padding: 8px 14px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      button.primary {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: #fff;
+      }
+
+      button.accent {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      button:hover {
+        filter: brightness(0.96);
+      }
+
+      .status {
+        min-height: 22px;
+        margin-bottom: 16px;
+        color: var(--muted);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+      }
+
+      .panel h2 {
+        margin: 0 0 10px;
+        font-size: 18px;
+      }
+
+      .filters {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      label {
+        display: grid;
+        gap: 4px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      input,
+      select {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px;
+        background: #fff;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+        padding: 8px 6px;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .scroll {
+        overflow: auto;
+      }
+
+      .tag {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .tag.ok {
+        color: var(--ok);
+        background: #dcfce7;
+      }
+
+      .tag.none {
+        color: #7c2d12;
+        background: #ffedd5;
+      }
+
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 12px;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .danger {
+        color: var(--danger);
+      }
+
+      #evaluation-detail {
+        white-space: pre-wrap;
+        font-size: 12px;
+        background: var(--surface-alt);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        min-height: 90px;
+      }
+
+      @media (min-width: 1024px) {
+        .grid {
+          grid-template-columns: 1.3fr 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>YouTube Comment Collector Console</h1>
+      <p class="subtitle">収集済みコメント・動画・ジョブ・評価履歴を確認する内部向け画面</p>
+
+      <div class="actions">
+        <button id="refresh-all" class="primary">全体リロード</button>
+        <button id="run-scan">コメント収集を実行</button>
+        <button id="run-eval" class="accent">評価ジョブを実行</button>
+      </div>
+      <div id="status" class="status"></div>
+
+      <div class="grid">
+        <section class="panel">
+          <h2>コメント一覧</h2>
+          <div class="filters">
+            <label>
+              チャンネル
+              <select id="filter-channel"></select>
+            </label>
+            <label>
+              動画
+              <select id="filter-video"></select>
+            </label>
+            <label>
+              キーワード
+              <input id="filter-q" placeholder="本文検索" />
+            </label>
+            <label>
+              評価
+              <select id="filter-has-eval">
+                <option value="">全て</option>
+                <option value="true">評価あり</option>
+                <option value="false">評価なし</option>
+              </select>
+            </label>
+            <label>
+              開始日
+              <input id="filter-from" type="date" />
+            </label>
+            <label>
+              終了日
+              <input id="filter-to" type="date" />
+            </label>
+            <label>
+              件数
+              <select id="filter-limit">
+                <option value="50">50</option>
+                <option value="100" selected>100</option>
+                <option value="200">200</option>
+              </select>
+            </label>
+          </div>
+          <div class="actions">
+            <button id="apply-comment-filter">フィルタ適用</button>
+          </div>
+          <div class="scroll">
+            <table id="comments-table">
+              <thead>
+                <tr>
+                  <th>投稿日</th>
+                  <th>動画</th>
+                  <th>コメント</th>
+                  <th>いいね</th>
+                  <th>評価</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>評価履歴</h2>
+          <p class="muted" id="evaluation-title">コメントを選択してください</p>
+          <div id="evaluation-detail" class="mono"></div>
+        </section>
+
+        <section class="panel">
+          <h2>動画一覧</h2>
+          <div class="scroll">
+            <table id="videos-table">
+              <thead>
+                <tr>
+                  <th>公開日</th>
+                  <th>動画タイトル</th>
+                  <th>コメント数</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>ジョブ履歴</h2>
+          <h3>コメント収集</h3>
+          <div class="scroll">
+            <table id="runs-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>status</th>
+                  <th>件数</th>
+                  <th>終了</th>
+                  <th>error</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <h3>評価</h3>
+          <div class="scroll">
+            <table id="eval-jobs-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>status</th>
+                  <th>model</th>
+                  <th>開始</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>チャンネル管理</h2>
+          <div class="actions">
+            <input id="new-channel-id" placeholder="@lalatuune または UC..." />
+            <input id="new-channel-title" placeholder="タイトル(任意)" />
+            <button id="add-channel">追加</button>
+          </div>
+          <div class="scroll">
+            <table id="channels-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>youtube_channel_id</th>
+                  <th>title</th>
+                  <th>active</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      const state = {
+        channels: [],
+        videos: []
+      };
+
+      const statusEl = document.getElementById("status");
+      const channelFilterEl = document.getElementById("filter-channel");
+      const videoFilterEl = document.getElementById("filter-video");
+
+      function setStatus(message, isError = false) {
+        statusEl.textContent = message;
+        statusEl.className = `status ${isError ? "danger" : ""}`;
+      }
+
+      function formatDate(value) {
+        if (!value) {
+          return "-";
+        }
+        try {
+          return new Date(value).toLocaleString("ja-JP");
+        } catch {
+          return String(value);
+        }
+      }
+
+      async function api(path, options = {}) {
+        const res = await fetch(path, options);
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(json.message || `API Error ${res.status}`);
+        }
+        return json;
+      }
+
+      function appendCell(row, value, className = "") {
+        const td = document.createElement("td");
+        td.textContent = value == null ? "" : String(value);
+        if (className) {
+          td.className = className;
+        }
+        row.appendChild(td);
+        return td;
+      }
+
+      function fillChannelSelect() {
+        channelFilterEl.innerHTML = "";
+        const all = document.createElement("option");
+        all.value = "";
+        all.textContent = "全チャンネル";
+        channelFilterEl.appendChild(all);
+
+        state.channels.forEach((channel) => {
+          const opt = document.createElement("option");
+          opt.value = String(channel.id);
+          opt.textContent = `${channel.title || "(no title)"} [${channel.youtube_channel_id}]`;
+          channelFilterEl.appendChild(opt);
+        });
+      }
+
+      function fillVideoSelect() {
+        const selectedChannel = channelFilterEl.value;
+        videoFilterEl.innerHTML = "";
+
+        const all = document.createElement("option");
+        all.value = "";
+        all.textContent = "全動画";
+        videoFilterEl.appendChild(all);
+
+        state.videos
+          .filter((video) => !selectedChannel || String(video.channelId) === selectedChannel)
+          .forEach((video) => {
+            const opt = document.createElement("option");
+            opt.value = String(video.id);
+            opt.textContent = video.title || video.youtubeVideoId;
+            videoFilterEl.appendChild(opt);
+          });
+      }
+
+      async function loadChannels() {
+        const data = await api("/api/channels");
+        state.channels = data.channels || [];
+
+        const tbody = document.querySelector("#channels-table tbody");
+        tbody.innerHTML = "";
+
+        state.channels.forEach((channel) => {
+          const tr = document.createElement("tr");
+          appendCell(tr, channel.id, "mono");
+          appendCell(tr, channel.youtube_channel_id, "mono");
+          appendCell(tr, channel.title || "");
+          appendCell(tr, channel.is_active ? "true" : "false");
+          tbody.appendChild(tr);
+        });
+
+        fillChannelSelect();
+      }
+
+      async function loadVideos() {
+        const channelId = channelFilterEl.value;
+        const query = new URLSearchParams({ limit: "100" });
+        if (channelId) {
+          query.set("channelId", channelId);
+        }
+
+        const data = await api(`/api/videos?${query.toString()}`);
+        state.videos = data.videos || [];
+
+        const tbody = document.querySelector("#videos-table tbody");
+        tbody.innerHTML = "";
+
+        state.videos.forEach((video) => {
+          const tr = document.createElement("tr");
+          appendCell(tr, formatDate(video.publishedAt));
+          appendCell(tr, video.title || "");
+          appendCell(tr, video.commentCount ?? 0);
+          tbody.appendChild(tr);
+        });
+
+        fillVideoSelect();
+      }
+
+      async function loadComments() {
+        const query = new URLSearchParams();
+        const channelId = channelFilterEl.value;
+        const videoId = videoFilterEl.value;
+        const q = document.getElementById("filter-q").value.trim();
+        const hasEval = document.getElementById("filter-has-eval").value;
+        const from = document.getElementById("filter-from").value;
+        const to = document.getElementById("filter-to").value;
+        const limit = document.getElementById("filter-limit").value;
+
+        query.set("limit", limit || "100");
+        if (channelId) {
+          query.set("channelId", channelId);
+        }
+        if (videoId) {
+          query.set("videoId", videoId);
+        }
+        if (q) {
+          query.set("q", q);
+        }
+        if (hasEval) {
+          query.set("hasEvaluation", hasEval);
+        }
+        if (from) {
+          query.set("from", `${from}T00:00:00Z`);
+        }
+        if (to) {
+          query.set("to", `${to}T23:59:59Z`);
+        }
+
+        const data = await api(`/api/comments?${query.toString()}`);
+        const comments = data.comments || [];
+
+        const tbody = document.querySelector("#comments-table tbody");
+        tbody.innerHTML = "";
+
+        comments.forEach((comment) => {
+          const tr = document.createElement("tr");
+
+          const evalTagClass = comment.hasEvaluation ? "ok" : "none";
+          const evalTagText = comment.hasEvaluation
+            ? `あり (${comment.evaluationCount})`
+            : "なし";
+
+          appendCell(tr, formatDate(comment.publishedAt));
+
+          const videoCell = document.createElement("td");
+          const titleDiv = document.createElement("div");
+          titleDiv.textContent = comment.videoTitle || "";
+          const idDiv = document.createElement("div");
+          idDiv.className = "muted mono";
+          idDiv.textContent = comment.youtubeVideoId || "";
+          videoCell.appendChild(titleDiv);
+          videoCell.appendChild(idDiv);
+          tr.appendChild(videoCell);
+
+          appendCell(tr, comment.textOriginal || "");
+          appendCell(tr, comment.likeCount ?? 0);
+
+          const evalCell = document.createElement("td");
+          const tag = document.createElement("span");
+          tag.className = `tag ${evalTagClass}`;
+          tag.textContent = evalTagText;
+          evalCell.appendChild(tag);
+          tr.appendChild(evalCell);
+
+          const actionCell = document.createElement("td");
+          const button = document.createElement("button");
+          button.textContent = "評価履歴";
+          button.addEventListener("click", async () => {
+            await loadEvaluationHistory(String(comment.id));
+          });
+          actionCell.appendChild(button);
+          tr.appendChild(actionCell);
+
+          tbody.appendChild(tr);
+        });
+      }
+
+      async function loadJobs() {
+        const data = await api("/api/jobs?type=all&limit=30");
+        const runs = data.runs || [];
+        const jobs = data.jobs || [];
+
+        const runsBody = document.querySelector("#runs-table tbody");
+        runsBody.innerHTML = "";
+        runs.forEach((run) => {
+          const tr = document.createElement("tr");
+          appendCell(tr, run.id, "mono");
+          appendCell(tr, run.status);
+          appendCell(
+            tr,
+            `f:${run.fetched_count} / i:${run.inserted_count} / u:${run.updated_count}`
+          );
+          appendCell(tr, formatDate(run.finished_at));
+          appendCell(tr, run.error_message || "", "danger");
+          runsBody.appendChild(tr);
+        });
+
+        const evalJobsBody = document.querySelector("#eval-jobs-table tbody");
+        evalJobsBody.innerHTML = "";
+        jobs.forEach((job) => {
+          const tr = document.createElement("tr");
+          appendCell(tr, job.id, "mono");
+          appendCell(tr, job.status);
+          appendCell(tr, `${job.model_provider}/${job.model_name}`);
+          appendCell(tr, formatDate(job.started_at || job.created_at));
+          evalJobsBody.appendChild(tr);
+        });
+      }
+
+      async function loadEvaluationHistory(commentId) {
+        const title = document.getElementById("evaluation-title");
+        const detail = document.getElementById("evaluation-detail");
+        if (!commentId) {
+          return;
+        }
+
+        title.textContent = `comment_id=${commentId} の評価履歴`;
+        detail.textContent = "読み込み中...";
+
+        try {
+          const data = await api(`/api/comments/${commentId}/evaluations?limit=20`);
+          const evaluations = data.evaluations || [];
+
+          if (evaluations.length === 0) {
+            detail.textContent = "評価履歴なし";
+            return;
+          }
+
+          detail.textContent = evaluations
+            .map((e) => {
+              const lines = [];
+              lines.push(`evaluatedAt: ${formatDate(e.evaluatedAt)}`);
+              lines.push(`model: ${e.modelProvider}/${e.modelName} (${e.promptVersion})`);
+              lines.push(`labelJson: ${JSON.stringify(e.labelJson)}`);
+              lines.push(`scoreJson: ${JSON.stringify(e.scoreJson)}`);
+              if (e.rationale) {
+                lines.push(`rationale: ${e.rationale}`);
+              }
+              return lines.join("\n");
+            })
+            .join("\n\n----------------\n\n");
+        } catch (error) {
+          detail.textContent = `取得失敗: ${error.message}`;
+        }
+      }
+
+      async function runCommentScan() {
+        const channelId = channelFilterEl.value;
+        const body = channelId ? { channelId: Number(channelId) } : {};
+        await api("/api/jobs/comment-scan/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+      }
+
+      async function runEvaluation() {
+        await api("/api/jobs/evaluation/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({})
+        });
+      }
+
+      async function addChannel() {
+        const youtubeChannelId = document.getElementById("new-channel-id").value.trim();
+        const title = document.getElementById("new-channel-title").value.trim();
+        if (!youtubeChannelId) {
+          throw new Error("チャンネルIDまたはハンドルを入力してください");
+        }
+
+        await api("/api/channels", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ youtubeChannelId, title })
+        });
+
+        document.getElementById("new-channel-id").value = "";
+        document.getElementById("new-channel-title").value = "";
+      }
+
+      async function reloadAll() {
+        setStatus("読み込み中...");
+        try {
+          await loadChannels();
+          await loadVideos();
+          await loadComments();
+          await loadJobs();
+          setStatus(`更新完了 ${new Date().toLocaleTimeString("ja-JP")}`);
+        } catch (error) {
+          setStatus(`エラー: ${error.message}`, true);
+        }
+      }
+
+      document.getElementById("refresh-all").addEventListener("click", reloadAll);
+      document.getElementById("apply-comment-filter").addEventListener("click", loadComments);
+      document.getElementById("filter-channel").addEventListener("change", async () => {
+        await loadVideos();
+        await loadComments();
+      });
+      document.getElementById("filter-video").addEventListener("change", loadComments);
+
+      document.getElementById("run-scan").addEventListener("click", async () => {
+        setStatus("コメント収集ジョブを起動中...");
+        try {
+          await runCommentScan();
+          await loadJobs();
+          setStatus("コメント収集ジョブを起動しました");
+        } catch (error) {
+          setStatus(`起動失敗: ${error.message}`, true);
+        }
+      });
+
+      document.getElementById("run-eval").addEventListener("click", async () => {
+        setStatus("評価ジョブを起動中...");
+        try {
+          await runEvaluation();
+          await loadJobs();
+          setStatus("評価ジョブを起動しました");
+        } catch (error) {
+          setStatus(`起動失敗: ${error.message}`, true);
+        }
+      });
+
+      document.getElementById("add-channel").addEventListener("click", async () => {
+        setStatus("チャンネル追加中...");
+        try {
+          await addChannel();
+          await loadChannels();
+          await loadVideos();
+          await loadComments();
+          setStatus("チャンネルを追加しました");
+        } catch (error) {
+          setStatus(`追加失敗: ${error.message}`, true);
+        }
+      });
+
+      reloadAll();
+    </script>
+  </body>
+</html>

@@ -7,21 +7,23 @@ type CreateChannelBody = {
   title?: string;
 };
 
+type ChannelRow = {
+  id: number;
+  youtube_channel_id: string;
+  title: string | null;
+  is_active: boolean;
+  last_video_scan_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (methodNotAllowed(req, res, ["GET", "POST"])) {
     return;
   }
 
   if (req.method === "GET") {
-    const channels = await sql<{
-      id: number;
-      youtube_channel_id: string;
-      title: string | null;
-      is_active: boolean;
-      last_video_scan_at: string | null;
-      created_at: string;
-      updated_at: string;
-    }[]>`
+    const channels = (await sql`
       SELECT
         id,
         youtube_channel_id,
@@ -32,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         updated_at
       FROM channels
       ORDER BY created_at DESC
-    `;
+    `) as ChannelRow[];
 
     res.status(200).json({ channels });
     return;
@@ -51,15 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const rows = await sql<{
-      id: number;
-      youtube_channel_id: string;
-      title: string | null;
-      is_active: boolean;
-      last_video_scan_at: string | null;
-      created_at: string;
-      updated_at: string;
-    }[]>`
+    const rows = (await sql`
       INSERT INTO channels (youtube_channel_id, title, is_active)
       VALUES (${youtubeChannelId}, ${title}, true)
       ON CONFLICT (youtube_channel_id)
@@ -75,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         last_video_scan_at,
         created_at,
         updated_at
-    `;
+    `) as ChannelRow[];
 
     res.status(201).json({ channel: rows[0] });
   } catch (error) {
@@ -85,4 +79,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 }
-

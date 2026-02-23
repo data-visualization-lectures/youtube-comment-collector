@@ -4,6 +4,11 @@ import { methodNotAllowed } from "../_lib/http";
 import { optionalEnv } from "../_lib/env";
 import { dispatchWorker } from "../_lib/worker";
 
+type DailyRunRow = {
+  runId: number;
+  channelId: number | null;
+};
+
 function isAuthorized(req: VercelRequest): boolean {
   if (process.env.NODE_ENV === "development") {
     return true;
@@ -29,10 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const runs = await sql<{
-      runId: number;
-      channelId: number | null;
-    }[]>`
+    const runs = (await sql`
       INSERT INTO comment_ingest_runs (
         run_type,
         target_channel_id,
@@ -45,7 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       FROM channels c
       WHERE c.is_active = true
       RETURNING id AS "runId", target_channel_id AS "channelId"
-    `;
+    `) as DailyRunRow[];
 
     const dispatchResults = await Promise.all(
       runs.map(async (run) => {
@@ -77,4 +79,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 }
-

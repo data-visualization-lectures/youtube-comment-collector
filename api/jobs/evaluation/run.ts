@@ -10,6 +10,10 @@ type RunEvaluationBody = {
   promptVersion?: string;
 };
 
+type EvaluationJobInsertRow = {
+  id: number;
+};
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (methodNotAllowed(req, res, ["POST"])) {
     return;
@@ -22,9 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const promptVersion = body.promptVersion?.trim() || "v1";
     const filterJson = body.filterJson ?? {};
 
-    const rows = await sql<{
-      id: number;
-    }[]>`
+    const rows = (await sql`
       INSERT INTO evaluation_jobs (
         status,
         filter_json,
@@ -40,7 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ${promptVersion}
       )
       RETURNING id
-    `;
+    `) as EvaluationJobInsertRow[];
 
     const jobId = rows[0]?.id;
     if (!jobId) {
@@ -77,4 +79,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 }
-
