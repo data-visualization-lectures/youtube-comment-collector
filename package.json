@@ -1,0 +1,17 @@
+{
+  "name": "youtube-comment-collector",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
+    "@vercel/node": "^5.3.24"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}
+
