@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import os
 
 
@@ -10,7 +8,9 @@ def require_env(name: str) -> str:
     return value
 
 
-DATABASE_URL = require_env("DATABASE_URL")
+# DATABASE_URL is validated lazily when DB access is attempted so that
+# the container can still boot and expose /health during deployments.
+DATABASE_URL = os.getenv("DATABASE_URL", "")
 WORKER_SHARED_SECRET = os.getenv("WORKER_SHARED_SECRET", "")
 
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
@@ -23,4 +23,3 @@ LLM_PROVIDER = os.getenv("LLM_PROVIDER", "heuristic")
 LLM_API_BASE_URL = os.getenv("LLM_API_BASE_URL", "https://api.openai.com/v1")
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
-

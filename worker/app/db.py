@@ -11,9 +11,10 @@ from .config import DATABASE_URL
 
 @contextmanager
 def get_conn() -> Iterator[psycopg.Connection]:
+    if not DATABASE_URL:
+        raise RuntimeError("Missing required env var: DATABASE_URL")
     conn = psycopg.connect(DATABASE_URL, row_factory=dict_row)
     try:
         yield conn
     finally:
         conn.close()
-
